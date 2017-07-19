@@ -165,7 +165,7 @@ def predict(model, test_loader,color_map, opt):
             labels_onehot = labels_onehot.float().cuda()
             _seg_data = _seg_data.cuda() # must be long cuda tensor  
         
-        pred_seg, _ = model(points_data, labels_onehot)
+        pred_seg, _, _ = model(points_data, labels_onehot)
         pred_seg = pred_seg.view(-1, opt.num_seg_classes)
         mini = np.min(pred_seg.data.numpy())
         # debug_here()

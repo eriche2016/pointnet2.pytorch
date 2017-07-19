@@ -32,8 +32,8 @@ fi
 ###########################################
 # run part segmentation experiments on shapenetcore_partanno
 ###########################################
-if [ 1 -eq 0 ]; then 
-    python main_part_seg.py --cuda --gpu_id 3 
+if [ 1 -eq 1 ]; then 
+    python main_part_seg.py --cuda --gpu_id 2 
 fi
 ###########################################
 # test part seg, note data from folder  
@@ -41,7 +41,7 @@ fi
 if [ 1 -eq 0 ]; then 
     python ./eval_part_seg_folder.py
 fi 
-if [ 1 -eq 1 ]; then 
+if [ 1 -eq 0 ]; then 
     python eval_part_seg_h5.py 
 fi 
 

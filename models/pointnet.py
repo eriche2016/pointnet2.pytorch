@@ -18,7 +18,7 @@ import torch.nn.functional as F
 from IPython.core.debugger import Tracer
 debug_here = Tracer()
 
-
+# transform on raw input data 
 # spatial transformer network
 class STN3d(nn.Module):
 	# for modelnet40, a 3d shape is with 2048 points 
@@ -54,8 +54,9 @@ class STN3d(nn.Module):
 
         x = F.relu(self.bn4(self.fc1(x)))
         x = F.relu(self.bn5(self.fc2(x)))
-        x = self.fc3(x)
+        x = self.fc3(x) # bz x 9 
         # identity transform
+        # bz x 9 
         iden = Variable(torch.from_numpy(np.array([1,0,0,0,1,0,0,0,1]).astype(np.float32))).view(1,9).repeat(batchsize,1)
         if x.is_cuda:
             iden = iden.cuda()
@@ -63,6 +64,42 @@ class STN3d(nn.Module):
         x = x.view(-1, 3, 3) # bz x 3 x 3 
         return x
 
+# 128 x 128 transform
+class Feats_STN3d(nn.Module):
+    # for modelnet40, a 3d shape is with 2048 points 
+    def __init__(self, num_points = 2500):    
+        super(Feats_STN3d, self).__init__()
+        self.conv1 = nn.Conv1d(128, 256, 1)
+        self.conv2 = nn.Conv1d(256, 1024, 1)
+        self.mp1 = nn.MaxPool1d(num_points) 
+
+        self.fc1 = nn.Linear(1024, 512)
+        self.fc2 = nn.Linear(512, 256)
+        self.fc3 = nn.Linear(256, 128*128)
+
+        self.bn1 = nn.BatchNorm1d(256)
+        self.bn2 = nn.BatchNorm1d(1024)
+        self.bn3 = nn.BatchNorm1d(512)
+        self.bn4 = nn.BatchNorm1d(256)
+
+    def forward(self, x):
+        batchsize = x.size()[0]
+        x = F.relu(self.bn1(self.conv1(x))) # bz x 256 x 2048 
+        x = F.relu(self.bn2(self.conv2(x))) # bz x 1024 x 2048
+        x = self.mp1(x) # bz x 1024 x 1
+        x = x.view(-1, 1024)
+
+        x = F.relu(self.bn3(self.fc1(x))) # bz x 512 
+        x = F.relu(self.bn4(self.fc2(x))) # bz x 256
+        x = self.fc3(x) # bz x (128*128) 
+        # identity transform
+        # bz x (128*128)
+        iden = Variable(torch.from_numpy(np.eye(128).astype(np.float32))).view(1,128*128).repeat(batchsize,1)
+        if x.is_cuda:
+            iden = iden.cuda()
+        x = x + iden
+        x = x.view(-1, 128, 128) # bz x 3 x 3 
+        return x
 
 class PointNetfeat(nn.Module):
     def __init__(self, num_points = 2500, global_feat = True):
@@ -136,7 +173,7 @@ class PointNetPartDenseCls(nn.Module):
         self.bn3 = nn.BatchNorm1d(128)
         
         # T2 
-        # self.stn2 = STN3d(num_points = num_points)
+        self.stn2 = Feats_STN3d(num_points = num_points)
 
         self.conv4 = torch.nn.Conv1d(128, 128, 1)
         self.conv5 = torch.nn.Conv1d(128, 512, 1)
@@ -171,13 +208,13 @@ class PointNetPartDenseCls(nn.Module):
         out3 = F.relu(self.bn3(self.conv3(out2))) # bz x 128 x 2048
         #######################################################################
         # T2, currently has bugs so now remove this temporately
-        # trans = self.stn2(out3) # regressing the transforming parameters using STN
-        # out3 = out3.transpose(2,1) # bz x 2048 x 128
-        # out3 = torch.bmm(out3, trans) # (bz x 2048 x 128) x (bz x 128 x 3) 
+        trans_2 = self.stn2(out3) # regressing the transforming parameters using STN
+        out3_t = out3.transpose(2,1) # bz x 2048 x 128
+        out3_trsf = torch.bmm(out3_t, trans_2) # (bz x 2048 x 128) x (bz x 128 x 3) 
         # change back 
-        # out3 = out3.transpose(2,1) # bz x 128 x 2048
-        ########################################################################
-        out4 = F.relu(self.bn4(self.conv4(out3))) # bz x 128 x 2048
+        out3_trsf = out3_trsf.transpose(2,1) # bz x 128 x 2048
+
+        out4 = F.relu(self.bn4(self.conv4(out3_trsf))) # bz x 128 x 2048
         out5 = F.relu(self.bn5(self.conv5(out4))) # bz x 512 x 2048 
         out6 = F.relu(self.bn6(self.conv6(out5))) # bz x 2048 x 2048
         out6 = self.mp1(out6) #  bz x 2048
@@ -201,7 +238,7 @@ class PointNetPartDenseCls(nn.Module):
         pred_out = pred_out.transpose(2,1).contiguous()
         pred_out = F.log_softmax(pred_out.view(-1,self.k))
         pred_out = pred_out.view(batch_size, self.num_points, self.k)
-        return pred_out, trans_1
+        return pred_out, trans_1, trans_2
 
 # regular segmentation
 class PointNetDenseCls(nn.Module):

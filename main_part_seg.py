@@ -133,7 +133,7 @@ def train(train_loader, model, criterion, optimizer, epoch, opt):
         optimizer.zero_grad()
         # forward, backward optimize 
         # pred, _ = model(input_points, labels_onehot)
-        pred, _ = model(input_points, labels_onehot)
+        pred, _, _ = model(input_points, labels_onehot)
         pred = pred.view(-1, opt.num_seg_classes)
         segs = segs.view(-1, 1)[:, 0] 
         # debug_here() 
@@ -164,7 +164,7 @@ def validate(val_loader, model, criterion, epoch, opt):
         input_points = input_points.transpose(2, 1)
         _labels = _labels.long() # this will be feed to the network 
         segs = segs.long()
-        labels_onehot = labels_batch2one_hot_batch(_labels, opt.num_classes)
+        labels_onehot = utils.labels_batch2one_hot_batch(_labels, opt.num_classes)
         segs = Variable(segs, volatile=True) 
         labels_onehot = Variable(labels_onehot, volatile=True)
 
@@ -174,7 +174,7 @@ def validate(val_loader, model, criterion, epoch, opt):
             labels_onehot = labels_onehot.float().cuda() # this will be feed into the network
         
         # forward, backward optimize 
-        pred, _ = model(input_points, labels_onehot)
+        pred, _, _ = model(input_points, labels_onehot)
         pred = pred.view(-1, opt.num_seg_classes)
         segs = segs.view(-1, 1)[:, 0]  # min is already 0
         # debug_here() 
@@ -245,12 +245,10 @@ def main():
         #################################
         train(train_loader, model, criterion, optimizer, epoch, opt)
 
-
         #################################
         # validate 
         #################################
         prec1 = validate(val_loader, model, criterion, epoch, opt)
-
         ##################################
         # save checkpoints 
         ################################## 
