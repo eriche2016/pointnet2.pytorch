@@ -52,3 +52,11 @@ def clip_gradient(optimizer, grad_clip):
     for group in optimizer.param_groups:
         for param in group['params']:
             param.grad.data.clamp_(-grad_clip, grad_clip)
+
+# input labels: bz x 1 
+# output: bz x num_classes is one hot 
+def labels_batch2one_hot_batch(labels_batch, num_classes):
+    bz = labels_batch.size(0)
+    labels_onehot = torch.FloatTensor(bz, num_classes).type_as(labels_batch).zero_()
+    labels_onehot.scatter_(1, labels_batch, 1)
+    return labels_onehot

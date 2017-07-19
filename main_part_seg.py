@@ -104,15 +104,6 @@ print('number of train samples is: ', len(train_dataset))
 print('number of test samples is: ', len(val_dataset))
 print('finished loading data')
 
-
-# input labels: bz x 1 
-# output: bz x num_classes is one hot 
-def labels_batch2one_hot_batch(labels_batch, num_classes):
-    bz = labels_batch.size(0)
-    labels_onehot = torch.FloatTensor(bz, num_classes).type_as(labels_batch).zero_()
-    labels_onehot.scatter_(1, labels_batch, 1)
-    return labels_onehot
-
 def train(train_loader, model, criterion, optimizer, epoch, opt):
     """
     train for one epoch on the training set
@@ -129,7 +120,7 @@ def train(train_loader, model, criterion, optimizer, epoch, opt):
         ###############
         _labels = _labels.long() 
         segs = segs.long() 
-        labels_onehot = labels_batch2one_hot_batch(_labels, opt.num_classes)
+        labels_onehot = utils.labels_batch2one_hot_batch(_labels, opt.num_classes)
         labels_onehot = Variable(labels_onehot) # we dnonot calculate the gradients here
         # labels_onehot.requires_grad = True
         segs = Variable(segs) 
