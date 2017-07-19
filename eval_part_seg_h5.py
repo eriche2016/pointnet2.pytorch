@@ -142,10 +142,16 @@ def predict(model, test_loader,color_map, opt):
 
         points_data = Variable(points_data, volatile=True)
         points_data = points_data.transpose(2, 1)
+        _labels = _labels.long() 
+        _seg_data = _seg_data.long() 
+        labels_onehot = utils.labels_batch2one_hot_batch(_labels, opt.num_labels)
+        labels_onehot = Variable(labels_onehot, volatile=True) # we dnonot calculate the gradients here
+
         _seg_data = Variable(_seg_data, volatile=True) 
         ##################################################
         ##
         ##################################################
+
         cur_gt_label = _labels[0][0] 
         cur_label_one_hot = np.zeros((1, opt.num_labels), dtype=np.float32)
         cur_label_one_hot[0, cur_gt_label] = 1
@@ -156,9 +162,10 @@ def predict(model, test_loader,color_map, opt):
         
         if opt.cuda:
             points_data = points_data.cuda() 
-            _seg_data = _seg_data.long().cuda() # must be long cuda tensor  
+            labels_onehot = labels_onehot.float().cuda()
+            _seg_data = _seg_data.cuda() # must be long cuda tensor  
         
-        pred_seg, _ = model(points_data)
+        pred_seg, _ = model(points_data, labels_onehot)
         pred_seg = pred_seg.view(-1, opt.num_seg_classes)
         mini = np.min(pred_seg.data.numpy())
         # debug_here()
@@ -293,7 +300,7 @@ def main():
     ########################################################################
     assert opt.pretrained_model != '', 'must specify the pre-trained model'
     print("Loading Pretrained Model from {0}".format(opt.pretrained_model))
-    model = pointnet.PointNetDenseCls(num_points=opt.num_points, k=opt.num_seg_classes)
+    model = pointnet.PointNetPartDenseCls(num_points=opt.num_points, k=opt.num_seg_classes)
     model.load_state_dict(torch.load(opt.pretrained_model))
 
     if opt.cuda:  
