@@ -1,0 +1,4 @@
+datasets/
+test_results_folder/
+models_checkpoint/*.pth
+
